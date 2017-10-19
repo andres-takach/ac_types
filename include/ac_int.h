@@ -96,11 +96,6 @@
 #error DO NOT use defines before including third party header files.
 #endif
 
-#if (defined(true) || defined(false))
-#error One or more of the following is defined: true, false. They are keywords in C++ of type bool. Defining them as 1 and 0, may result in subtle compilation problems. 
-#error DO NOT use defines before including third party header files.
-#endif
-
 #ifndef __ASSERT_H__
 #define __ASSERT_H__
 #include <assert.h>
@@ -1309,7 +1304,14 @@ namespace ac_private {
   template<int N>
   class iv {
   protected:
+#ifdef __SYNTHESIS__
     int v[N];
+#else // __SYNTHESIS__
+    // Fully initialize the underlying int vector for non-synthesis builds.
+    // Otherwise, LLVM may take advantage of the uninitialized values during
+    // optimization and will occasionally produce garbage.
+    int v[N] = {};
+#endif  // __SYNTHESIS__
   public:
     template<int N2> friend class iv;
     iv() {}
@@ -2308,8 +2310,9 @@ public:
   // Bit and Slice Select -----------------------------------------------------
   template<int WS, int WX, bool SX>
   inline ac_int<WS,S> slc(const ac_int<WX,SX> &index) const {
+    using ac_intX = ac_int<WX,SX>;
     ac_int<WS,S> r;
-    AC_ASSERT(index >= 0, "Attempting to read slc with negative indeces");
+    AC_ASSERT(index >= ac_intX(0), "Attempting to read slc with negative indeces");
     ac_int<WX-SX, false> uindex = index;
     Base::shift_r(uindex.to_uint(), r);
     r.bit_adjust();
@@ -2643,7 +2646,13 @@ template<> inline ac_int<64,false>::ac_int( Ulong b ) { v[0] = (int) b; v[1] = (
 template<int W, bool S>
 inline std::ostream& operator << (std::ostream &os, const ac_int<W,S> &x) {
 #ifndef __SYNTHESIS__
-  os << x.to_string(AC_DEC);
+  if ((os.flags() & std::ios::hex) != 0) {
+    os << x.to_string(AC_HEX);
+  } else if ((os.flags() & std::ios::oct) != 0) {
+    os << x.to_string(AC_OCT);
+  } else {
+    os << x.to_string(AC_DEC);
+  }
 #endif
   return os;
 }

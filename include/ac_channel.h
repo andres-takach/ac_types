@@ -42,6 +42,7 @@
 
 #include <iostream>
 #include <stdio.h>
+#include <stdlib.h>
 
 #ifndef __SYNTHESIS__
 #include <deque>
@@ -175,7 +176,7 @@ T ac_channel<T>::read()
 #ifndef __SYNTHESIS__
 	if (chan.empty()) {
           std::cout << "Read from empty channel" << std::endl;  
-          throw("Read from empty channel");  
+          abort();
         }
 	T t= chan.front(); 
 	chan.pop_front(); 
